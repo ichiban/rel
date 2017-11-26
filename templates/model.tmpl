@@ -1,0 +1,9 @@
+package {{.Package}}
+{{range .Tables}}
+// {{.Name | singular | Camel}} represents a record in {{.Name}} table.
+type {{.Name | singular | Camel}} struct {
+	{{- range .Columns}}
+	{{.Name | Camel}} {{.Type}} `json:"{{.Name | camel}}"`
+	{{- end}}
+}
+{{end}}

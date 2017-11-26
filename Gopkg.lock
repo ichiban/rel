@@ -2,10 +2,40 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "github.com/c9s/inflect"
+  packages = ["."]
+  revision = "006c50878f3f13ce1ea1301c513b03edd985e8f2"
+
+[[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/mattn/go-sqlite3"
   packages = ["."]
   revision = "ed69081a91fd053f17672236b0dd52ba7485e1a3"
   version = "v1.4.0"
+
+[[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/serenize/snaker"
+  packages = ["."]
+  revision = "c7a77c38c398a5468cac9579c3b2b1de22fb4da6"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
+  version = "v1.1.4"
 
 [[projects]]
   branch = "master"
@@ -13,9 +43,15 @@
   packages = ["context"]
   revision = "9dfe39835686865bff950a07b394c12a98ddc811"
 
+[[projects]]
+  name = "gopkg.in/DATA-DOG/go-sqlmock.v1"
+  packages = ["."]
+  revision = "d76b18b42f285b792bf985118980ce9eacea9d10"
+  version = "v1.3.0"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d917c627ba7518d75a1389d3c4992d767045babdd915f091fc3350aedea8fc27"
+  inputs-digest = "d9121beb17445ee56dc135d0af69cbba9ac1a943221fa2f34c28467bdb9165f8"
   solver-name = "gps-cdcl"
   solver-version = 1
