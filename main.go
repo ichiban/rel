@@ -2,9 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
-	"html/template"
+	"log"
 	"os"
+	"reflect"
+	"text/template"
 
 	"github.com/c9s/inflect"
 	_ "github.com/mattn/go-sqlite3"
@@ -21,8 +22,6 @@ func main() {
 
 	dataSourceName := os.Args[1]
 
-	fmt.Printf("name: %s\n", dataSourceName)
-
 	db, err := sql.Open("sqlite3", dataSourceName)
 	if err != nil {
 		panic(err)
@@ -34,13 +33,34 @@ func main() {
 		panic(err)
 	}
 
+	s.Dialect = "sqlite3"
 	s.Package = "main"
 	ts := template.Must(template.New("").Funcs(template.FuncMap{
 		"singular": inflect.Singularize,
+		"plural":   inflect.Pluralize,
 		"Camel":    snaker.SnakeToCamel,
 		"camel":    inflect.CamelizeDownFirst,
+		"zero":     zero,
 	}).ParseGlob("templates/*.tmpl"))
 	if err := ts.ExecuteTemplate(os.Stdout, "model.tmpl", &s); err != nil {
 		panic(err)
+	}
+}
+
+func zero(t reflect.Type) string {
+	switch t.Kind() {
+	case reflect.Bool:
+		return "false"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+		return "0"
+	case reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return "nil"
+	case reflect.String:
+		return `""`
+	case reflect.Struct:
+		return "(" + t.String() + "{})"
+	default:
+		log.Fatalf("unsupported type: %s", t)
+		return ""
 	}
 }

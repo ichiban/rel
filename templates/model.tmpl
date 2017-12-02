@@ -1,4 +1,15 @@
+{{- $dialect := .Dialect -}}
+
 package {{.Package}}
+
+import (
+	"database/sql"
+	"strings"
+	"time"
+)
+
+var DB *sql.DB
+
 {{range .Tables}}
 // {{.Name | singular | Camel}} represents a record in {{.Name}} table.
 type {{.Name | singular | Camel}} struct {
@@ -6,4 +17,139 @@ type {{.Name | singular | Camel}} struct {
 	{{.Name | Camel}} {{.Type}} `json:"{{.Name | camel}}"`
 	{{- end}}
 }
-{{end}}
+
+func (m *{{.Name | singular | Camel}}) Create() error {
+	cs := make([]string, 0, {{.Columns | len}})
+	ps := make([]string, 0, {{.Columns | len}})
+	vs := make([]interface{}, 0, {{.Columns | len}})
+	cs = append(cs{{range .Columns}}{{if not .Default}}, `{{.Name}}`{{end}}{{end}})
+	ps = append(ps{{range .Columns}}{{if not .Default}}, "?"{{end}}{{end}})
+	vs = append(vs{{range .Columns}}{{if not .Default}}, m.{{.Name | Camel}}{{end}}{{end}})
+	{{- range .Columns}}
+	{{- if .Default}}
+	if m.{{.Name | Camel}} != {{.Type | zero}} {
+		cs = append(cs, `{{.Name}}`)
+		ps = append(ps, "?")
+		vs = append(vs, m.{{.Name | Camel}})
+	}
+	{{- end}}
+	{{- end}}
+	res, err := DB.Exec(`INSERT INTO {{.Name}}(` + strings.Join(cs, ", ") + `) VALUES (` + strings.Join(ps, ", ") + `)`, vs...)
+	if err != nil {
+		return err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return err
+	}
+	row := DB.QueryRow(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}} WHERE rowid = ?`, id)
+	return row.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}})
+}
+
+func (m *{{.Name | singular | Camel}}) Update() error {
+	_, err := DB.Exec(`UPDATE {{.Name}} SET {{range $index, $column := .Columns}}
+	{{- if $index}}, {{end -}}
+	{{$column.Name}} = ?
+	{{- end}} WHERE {{range $index, $column := .PrimaryKey}}
+	{{- if $index}}, {{end -}}
+	{{$column.Name}} = ?
+	{{- end -}}
+	`{{range .Columns}}, m.{{.Name | Camel}}{{end}}{{range .PrimaryKey}}, m.{{.Name | Camel}}{{end}})
+	return err
+}
+
+func (m *{{.Name | singular | Camel}}) Delete() error {
+	_, err := DB.Exec(`DELETE FROM {{.Name}} WHERE {{range $index, $column := .PrimaryKey}}{{if $index}} AND {{end}}{{$column.Name}} = ?{{end}}`{{range .PrimaryKey}}, m.{{.Name | Camel}}{{end}})
+	return err
+}
+
+func (m *{{.Name | singular | Camel}}) Find(scopes ...Scope) error {
+	l := 1
+	q := Query{
+		Limit: &l,
+	}
+	for _, s := range scopes {
+		s(&q)
+	}
+	row := DB.QueryRow(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}}` + q.String(), q.Params()...)
+	return row.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}})
+}
+
+type {{.Name | plural | Camel}} []{{.Name | singular | Camel}}
+
+func (ms *{{.Name | plural | Camel}}) Find(scopes ...Scope) error {
+	var q Query
+	for _, s := range scopes {
+		s(&q)
+	}
+	*ms = (*ms)[:0]
+	rows, err := DB.Query(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}}` + q.String(), q.Params()...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	var m {{.Name | singular | Camel}}
+	if rows.Next() {
+		if err := rows.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}}); err != nil {
+			return err
+		}
+		*ms = append(*ms, m)
+	}
+	return nil
+}
+{{- end}}
+
+type Scope func(*Query)
+{{- range .Columns}}
+func {{.Name | Camel}}(v interface{}) Scope {
+	return func(q *Query) {
+		q.Criteria = append(q.Criteria, Criterion{SQL: `{{.Name}} = ?`, Values: []interface{}{v}})
+	}
+}
+{{- end}}
+func Limit(n int) Scope {
+	return func(q *Query) {
+		q.Limit = &n
+	}
+}
+
+type Query struct {
+	Criteria []Criterion
+	Order []string
+	Limit *int
+}
+
+func (q *Query) String() string {
+	ws := make([]string, 0, len(q.Criteria)+1)
+	for _, c := range q.Criteria {
+		ws = append(ws, c.SQL)
+	}
+	ps := make([]string, 0, 4)
+	if q.Criteria != nil {
+		ps = append(ps, " WHERE ")
+	}
+	ps = append(ps, strings.Join(ws, " AND "))
+	if q.Order != nil {
+		ps = append(ps, " ORDER BY ", strings.Join(q.Order, ", "))
+	}
+	if q.Limit != nil {
+		ps = append(ps, " LIMIT ?")
+	}
+	return strings.Join(ps, "")
+}
+
+func (q *Query) Params() []interface{} {
+	ps := make([]interface{}, 0, len(q.Criteria)*2)
+	for _, c := range q.Criteria {
+		ps = append(ps, c.Values...)
+	}
+	if q.Limit != nil {
+		ps = append(ps, *q.Limit)
+	}
+	return ps
+}
+
+type Criterion struct {
+	SQL string
+	Values []interface{}
+}

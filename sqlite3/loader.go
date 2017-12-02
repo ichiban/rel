@@ -39,11 +39,12 @@ func (l *Loader) Load(schema *models.Schema) error {
 		}
 
 		// check if it has rowid.
-		_, err = db.Query(fmt.Sprintf(`SELECT rowid FROM %s LIMIT 1`, tableName))
-		rowid := err == nil
+		if _, err := db.Query(fmt.Sprintf(`SELECT rowid FROM %s LIMIT 1`, tableName)); err != nil {
+			return fmt.Errorf("WITHOUT ROWID tables are not supported: %v", err)
+		}
 
 		var tableInfo []*TableInfo
-		var pkColumns []*models.Column
+		var pkColumns int
 		rows, err := db.Query(fmt.Sprintf(`PRAGMA table_info(%s)`, tableName))
 		if err != nil {
 			return err
@@ -55,21 +56,24 @@ func (l *Loader) Load(schema *models.Schema) error {
 			}
 			tableInfo = append(tableInfo, &ti)
 			if ti.PK != 0 {
-				pkColumns = append(pkColumns, nil)
+				pkColumns++
 			}
 		}
 
+		table.Columns = make([]*models.Column, 0, len(tableInfo))
+		table.PrimaryKey = make([]*models.Column, pkColumns)
+
 		for _, column := range tableInfo {
-			rowidAlias := rowid && column.PK == 1 && strings.EqualFold(column.Type, "INTEGER") && len(pkColumns) == 1
+			rowidAlias := column.PK == 1 && strings.EqualFold(column.Type, "INTEGER") && pkColumns == 1
 			c := models.Column{
 				Name:     column.Name,
-				Type:     parseType(column.Type),
+				RawType:  parseType(column.Type),
 				Nullable: !column.NotNull && !rowidAlias,
 				Default:  column.DefaultValue != nil || rowidAlias,
 			}
 			table.Columns = append(table.Columns, &c)
 			if column.PK > 0 {
-				pkColumns[column.PK-1] = &c
+				table.PrimaryKey[column.PK-1] = &c
 			}
 		}
 
@@ -118,6 +122,7 @@ func parseType(t string) reflect.Type {
 	case t == "BOOLEAN":
 		return reflect.TypeOf(false)
 	default:
-		return reflect.TypeOf(nil)
+		var i *interface{}
+		return reflect.TypeOf(i).Elem()
 	}
 }
