@@ -62,24 +62,20 @@ func (m *{{.Name | singular | Camel}}) Delete() error {
 }
 
 func (m *{{.Name | singular | Camel}}) Find(scopes ...Scope) (bool, error) {
-	l := 1
 	q := Query{
-		Limit: &l,
+		Limit: 1,
 	}
 	for _, s := range scopes {
 		s(&q)
 	}
 	row := DB.QueryRow(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}}` + q.String(), q.Params()...)
 	err := row.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}})
-	if err != sql.ErrNoRows {
-			return false, nil
-	}
-
+	return err != sql.ErrNoRows, err
 }
 
 type {{.Name | plural | Camel}} []{{.Name | singular | Camel}}
 
-func (ms *{{.Name | plural | Camel}}) Find(scopes ...Scope) error {
+func (ms *{{.Name | plural | Camel}}) Find(scopes ...Scope) (bool, error) {
 	var q Query
 	for _, s := range scopes {
 		s(&q)
@@ -87,17 +83,17 @@ func (ms *{{.Name | plural | Camel}}) Find(scopes ...Scope) error {
 	*ms = (*ms)[:0]
 	rows, err := DB.Query(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}}` + q.String(), q.Params()...)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer rows.Close()
 	var m {{.Name | singular | Camel}}
 	if rows.Next() {
 		if err := rows.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}}); err != nil {
-			return err
+			return false, err
 		}
 		*ms = append(*ms, m)
 	}
-	return nil
+	return len(*ms) != 0, nil
 }
 {{- end}}
 
@@ -105,29 +101,29 @@ type Scope func(*Query)
 {{- range .Columns}}
 func {{.Name | Camel}}(v interface{}) Scope {
 	return func(q *Query) {
-		q.Criteria = append(q.Criteria, Criterion{SQL: `{{.Name}} = ?`, Values: []interface{}{v}})
+		q.Where = append(q.Where, Criterion{SQL: `{{.Name}} = ?`, Values: []interface{}{v}})
 	}
 }
 {{- end}}
 func Limit(n int) Scope {
 	return func(q *Query) {
-		q.Limit = &n
+		q.Limit = n
 	}
 }
 
 type Query struct {
-	Criteria []Criterion
+	Where []Criterion
 	Order []string
-	Limit *int
+	Limit interface{}
 }
 
 func (q *Query) String() string {
-	ws := make([]string, 0, len(q.Criteria))
-	for _, c := range q.Criteria {
+	ws := make([]string, 0, len(q.Where))
+	for _, c := range q.Where {
 		ws = append(ws, c.SQL)
 	}
 	ps := make([]string, 0, 4)
-	if q.Criteria != nil {
+	if q.Where != nil {
 		ps = append(ps, " WHERE ")
 	}
 	ps = append(ps, strings.Join(ws, " AND "))
@@ -141,12 +137,12 @@ func (q *Query) String() string {
 }
 
 func (q *Query) Params() []interface{} {
-	ps := make([]interface{}, 0, len(q.Criteria)*2)
-	for _, c := range q.Criteria {
+	ps := make([]interface{}, 0, len(q.Where)*2)
+	for _, c := range q.Where {
 		ps = append(ps, c.Values...)
 	}
 	if q.Limit != nil {
-		ps = append(ps, *q.Limit)
+		ps = append(ps, q.Limit)
 	}
 	return ps
 }
