@@ -11,6 +11,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/serenize/snaker"
 
+	"bytes"
+	"go/format"
+
 	"github.com/ichiban/rel/models"
 	"github.com/ichiban/rel/sqlite3"
 )
@@ -33,7 +36,6 @@ func main() {
 		panic(err)
 	}
 
-	s.Dialect = "sqlite3"
 	s.Package = "main"
 	ts := template.Must(template.New("").Funcs(template.FuncMap{
 		"singular": inflect.Singularize,
@@ -42,7 +44,17 @@ func main() {
 		"camel":    inflect.CamelizeDownFirst,
 		"zero":     zero,
 	}).ParseGlob("templates/*.tmpl"))
-	if err := ts.ExecuteTemplate(os.Stdout, "model.tmpl", &s); err != nil {
+	var buf bytes.Buffer
+	if err := ts.ExecuteTemplate(&buf, "model.tmpl", &s); err != nil {
+		panic(err)
+	}
+
+	b, err := format.Source(buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+
+	if _, err := os.Stdout.Write(b); err != nil {
 		panic(err)
 	}
 }
