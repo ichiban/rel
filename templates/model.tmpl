@@ -69,8 +69,14 @@ func (m *{{.Name | singular | Camel}}) Find(scopes ...Scope) (bool, error) {
 		s(&q)
 	}
 	row := DB.QueryRow(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}}` + q.String(), q.Params()...)
-	err := row.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}})
-	return err != sql.ErrNoRows, err
+	switch err := row.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}}); err {
+	case nil:
+		return true, nil
+	case sql.ErrNoRows:
+		return false, nil
+	default:
+		return false, err
+	}
 }
 
 type {{.Name | plural | Camel}} []{{.Name | singular | Camel}}
@@ -103,6 +109,14 @@ func {{.Name | Camel}}(v interface{}) Scope {
 	return func(q *Query) {
 		q.Where = append(q.Where, Criterion{SQL: `{{.Name}} = ?`, Values: []interface{}{v}})
 	}
+}
+
+func OrderBy{{.Name | Camel}}Asc(q *Query) {
+	q.Order = append(q.Order, `{{.Name}} ASC`)
+}
+
+func OrderBy{{.Name | Camel}}Desc(q *Query) {
+	q.Order = append(q.Order, `{{.Name}} DESC`)
 }
 {{- end}}
 func Limit(n int) Scope {
