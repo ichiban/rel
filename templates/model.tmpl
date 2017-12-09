@@ -107,7 +107,7 @@ type Scope func(*Query)
 {{- range .Columns}}
 func {{.Name | Camel}}(v interface{}) Scope {
 	return func(q *Query) {
-		q.Where = append(q.Where, Criterion{SQL: `{{.Name}} = ?`, Values: []interface{}{v}})
+		q.Where = append(q.Where, Condition{SQL: `{{.Name}} = ?`, Values: []interface{}{v}})
 	}
 }
 
@@ -126,7 +126,7 @@ func Limit(n int) Scope {
 }
 
 type Query struct {
-	Where []Criterion
+	Where []Condition
 	Order []string
 	Limit interface{}
 }
@@ -161,7 +161,7 @@ func (q *Query) Params() []interface{} {
 	return ps
 }
 
-type Criterion struct {
+type Condition struct {
 	SQL string
 	Values []interface{}
 }
