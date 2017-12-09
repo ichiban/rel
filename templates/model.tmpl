@@ -16,7 +16,11 @@ type {{.Name | singular | Camel}} struct {
 	{{- end}}
 }
 
-func (m *{{.Name | singular | Camel}}) Create() error {
+func (m *{{.Name | singular | Camel}}) Create(scopes ...Scope) error {
+	q := Query{DB: DB}
+	for _, s := range scopes {
+		s(&q)
+	}
 	cs := make([]string, 0, {{.Columns | len}})
 	ps := make([]string, 0, {{.Columns | len}})
 	vs := make([]interface{}, 0, {{.Columns | len}})
@@ -32,7 +36,7 @@ func (m *{{.Name | singular | Camel}}) Create() error {
 	}
 	{{- end}}
 	{{- end}}
-	res, err := DB.Exec(`INSERT INTO {{.Name}}(` + strings.Join(cs, ", ") + `) VALUES (` + strings.Join(ps, ", ") + `)`, vs...)
+	res, err := q.DB.Exec(`INSERT INTO {{.Name}}(` + strings.Join(cs, ", ") + `) VALUES (` + strings.Join(ps, ", ") + `)`, vs...)
 	if err != nil {
 		return err
 	}
@@ -40,12 +44,16 @@ func (m *{{.Name | singular | Camel}}) Create() error {
 	if err != nil {
 		return err
 	}
-	row := DB.QueryRow(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}} WHERE rowid = ?`, id)
+	row := q.DB.QueryRow(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}} WHERE rowid = ?`, id)
 	return row.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}})
 }
 
-func (m *{{.Name | singular | Camel}}) Update() error {
-	_, err := DB.Exec(`UPDATE {{.Name}} SET {{range $index, $column := .Columns}}
+func (m *{{.Name | singular | Camel}}) Update(scopes ...Scope) error {
+	q := Query{DB: DB}
+	for _, s := range scopes {
+		s(&q)
+	}
+	_, err := q.DB.Exec(`UPDATE {{.Name}} SET {{range $index, $column := .Columns}}
 	{{- if $index}}, {{end -}}
 	{{$column.Name}} = ?
 	{{- end}} WHERE {{range $index, $column := .PrimaryKey}}
@@ -56,19 +64,24 @@ func (m *{{.Name | singular | Camel}}) Update() error {
 	return err
 }
 
-func (m *{{.Name | singular | Camel}}) Delete() error {
-	_, err := DB.Exec(`DELETE FROM {{.Name}} WHERE {{range $index, $column := .PrimaryKey}}{{if $index}} AND {{end}}{{$column.Name}} = ?{{end}}`{{range .PrimaryKey}}, m.{{.Name | Camel}}{{end}})
+func (m *{{.Name | singular | Camel}}) Delete(scopes ...Scope) error {
+	q := Query{DB: DB}
+	for _, s := range scopes {
+		s(&q)
+	}
+	_, err := q.DB.Exec(`DELETE FROM {{.Name}} WHERE {{range $index, $column := .PrimaryKey}}{{if $index}} AND {{end}}{{$column.Name}} = ?{{end}}`{{range .PrimaryKey}}, m.{{.Name | Camel}}{{end}})
 	return err
 }
 
 func (m *{{.Name | singular | Camel}}) Find(scopes ...Scope) (bool, error) {
 	q := Query{
+		DB:    DB,
 		Limit: 1,
 	}
 	for _, s := range scopes {
 		s(&q)
 	}
-	row := DB.QueryRow(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}}` + q.String(), q.Params()...)
+	row := q.DB.QueryRow(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}}` + q.String(), q.Params()...)
 	switch err := row.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}}); err {
 	case nil:
 		return true, nil
@@ -82,12 +95,12 @@ func (m *{{.Name | singular | Camel}}) Find(scopes ...Scope) (bool, error) {
 type {{.Name | plural | Camel}} []{{.Name | singular | Camel}}
 
 func (ms *{{.Name | plural | Camel}}) Find(scopes ...Scope) (bool, error) {
-	var q Query
+	q := Query{DB: DB}
 	for _, s := range scopes {
 		s(&q)
 	}
 	*ms = (*ms)[:0]
-	rows, err := DB.Query(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}}` + q.String(), q.Params()...)
+	rows, err := q.DB.Query(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}}` + q.String(), q.Params()...)
 	if err != nil {
 		return false, err
 	}
@@ -104,6 +117,12 @@ func (ms *{{.Name | plural | Camel}}) Find(scopes ...Scope) (bool, error) {
 {{- end}}
 
 type Scope func(*Query)
+
+func TX(tx Querier) Scope {
+	return func(q *Query) {
+		q.DB = tx
+	}
+}
 {{- range .Columns}}
 func {{.Name | Camel}}(v interface{}) Scope {
 	return func(q *Query) {
@@ -126,6 +145,7 @@ func Limit(n int) Scope {
 }
 
 type Query struct {
+	DB Querier
 	Where []Condition
 	Order []string
 	Limit interface{}
@@ -164,4 +184,10 @@ func (q *Query) Params() []interface{} {
 type Condition struct {
 	SQL string
 	Values []interface{}
+}
+
+type Querier interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
 }
