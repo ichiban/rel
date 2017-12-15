@@ -2,6 +2,6 @@ package models
 
 type Table struct {
 	Name       string
-	Columns    []*Column
-	PrimaryKey []*Column
+	Columns    []Column
+	PrimaryKey []Column
 }

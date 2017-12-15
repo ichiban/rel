@@ -60,8 +60,8 @@ func (l *Loader) Load(schema *models.Schema) error {
 			}
 		}
 
-		table.Columns = make([]*models.Column, 0, len(tableInfo))
-		table.PrimaryKey = make([]*models.Column, pkColumns)
+		table.Columns = make([]models.Column, 0, len(tableInfo))
+		table.PrimaryKey = make([]models.Column, pkColumns)
 
 		for _, column := range tableInfo {
 			rowidAlias := column.PK == 1 && strings.EqualFold(column.Type, "INTEGER") && pkColumns == 1
@@ -71,13 +71,13 @@ func (l *Loader) Load(schema *models.Schema) error {
 				Nullable: !column.NotNull && !rowidAlias,
 				Default:  column.DefaultValue != nil || rowidAlias,
 			}
-			table.Columns = append(table.Columns, &c)
+			table.Columns = append(table.Columns, c)
 			if column.PK > 0 {
-				table.PrimaryKey[column.PK-1] = &c
+				table.PrimaryKey[column.PK-1] = c
 			}
 		}
 
-		schema.Tables = append(schema.Tables, &table)
+		schema.Tables = append(schema.Tables, table)
 	}
 
 	return nil

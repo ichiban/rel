@@ -2,77 +2,41 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"log"
 	"os"
-	"reflect"
-	"text/template"
+	"path/filepath"
 
-	"github.com/c9s/inflect"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/serenize/snaker"
-
-	"bytes"
-	"go/format"
 
 	"github.com/ichiban/rel/models"
 	"github.com/ichiban/rel/sqlite3"
 )
 
+var (
+	driver      = flag.String("driver", "", "-driver postgres")
+	database    = flag.String("database", "", "-database postgres://foo:bar@localhost/baz?sslmode=disable")
+	packageName = flag.String("package", "", "-package models")
+)
+
+func init() {
+	flag.Parse()
+}
+
 func main() {
-	if len(os.Args) < 2 {
-		panic(os.Args)
-	}
-
-	dataSourceName := os.Args[1]
-
-	db, err := sql.Open("sqlite3", dataSourceName)
+	db, err := sql.Open(*driver, *database)
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to open DB: %v", err)
 	}
 
 	l := sqlite3.Loader{DB: db}
 	var s models.Schema
 	if err := l.Load(&s); err != nil {
-		panic(err)
+		log.Fatalf("failed to load schema: %v", err)
 	}
 
-	s.Package = "main"
-	ts := template.Must(template.New("").Funcs(template.FuncMap{
-		"singular": inflect.Singularize,
-		"plural":   inflect.Pluralize,
-		"Camel":    snaker.SnakeToCamel,
-		"camel":    inflect.CamelizeDownFirst,
-		"zero":     zero,
-	}).ParseGlob("templates/*.tmpl"))
-	var buf bytes.Buffer
-	if err := ts.ExecuteTemplate(&buf, "model.tmpl", &s); err != nil {
-		panic(err)
-	}
-
-	b, err := format.Source(buf.Bytes())
-	if err != nil {
-		panic(err)
-	}
-
-	if _, err := os.Stdout.Write(b); err != nil {
-		panic(err)
-	}
-}
-
-func zero(t reflect.Type) string {
-	switch t.Kind() {
-	case reflect.Bool:
-		return "false"
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
-		return "0"
-	case reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
-		return "nil"
-	case reflect.String:
-		return `""`
-	case reflect.Struct:
-		return "(" + t.String() + "{})"
-	default:
-		log.Fatalf("unsupported type: %s", t)
-		return ""
+	s.Package = filepath.Base(*packageName)
+	if _, err := s.WriteTo(os.Stdout); err != nil {
+		log.Fatalf("failed to write: %v", err)
 	}
 }
