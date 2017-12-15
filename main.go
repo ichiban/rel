@@ -44,6 +44,7 @@ func main() {
 		log.Fatalf("failed to load schema: %v", err)
 	}
 
+	s.Driver = *driver
 	s.Package = filepath.Base(*packageName)
 	if _, err := s.WriteTo(os.Stdout); err != nil {
 		log.Fatalf("failed to write: %v", err)

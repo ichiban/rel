@@ -50,14 +50,8 @@ func (l *Loader) Load(schema *models.Schema) error {
 		}
 
 		table.Columns = make([]models.Column, 0, len(columns))
-		for _, column := range columns {
-			c := models.Column{
-				Name:     column.ColumnName,
-				RawType:  parseType(column.DataType),
-				Nullable: column.IsNullable == "YES",
-				Default:  column.ColumnDefault != nil,
-			}
-			table.Columns = append(table.Columns, c)
+		for _, c := range columns {
+			table.Columns = append(table.Columns, c.Column())
 		}
 
 		primaryKeys := make([]Columns, 0, len(columns))
@@ -89,14 +83,8 @@ func (l *Loader) Load(schema *models.Schema) error {
 		}
 
 		table.PrimaryKey = make([]models.Column, 0, len(primaryKeys))
-		for _, column := range columns {
-			c := models.Column{
-				Name:     column.ColumnName,
-				RawType:  parseType(column.DataType),
-				Nullable: column.IsNullable == "YES",
-				Default:  column.ColumnDefault != nil,
-			}
-			table.PrimaryKey = append(table.PrimaryKey, c)
+		for _, c := range columns {
+			table.PrimaryKey = append(table.PrimaryKey, c.Column())
 		}
 
 		schema.Tables = append(schema.Tables, table)
@@ -110,6 +98,15 @@ type Columns struct {
 	ColumnDefault *string
 	IsNullable    string
 	DataType      string
+}
+
+func (c *Columns) Column() models.Column {
+	return models.Column{
+		Name:     c.ColumnName,
+		RawType:  parseType(c.DataType),
+		Nullable: c.IsNullable == "YES",
+		Default:  c.ColumnDefault != nil,
+	}
 }
 
 func parseType(s string) reflect.Type {
