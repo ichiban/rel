@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 
+	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/ichiban/rel/models"
+	"github.com/ichiban/rel/postgres"
 	"github.com/ichiban/rel/sqlite3"
 )
 
@@ -29,7 +31,14 @@ func main() {
 		log.Fatalf("failed to open DB: %v", err)
 	}
 
-	l := sqlite3.Loader{DB: db}
+	var l models.Loader
+	switch *driver {
+	case "sqlite3":
+		l = &sqlite3.Loader{DB: db}
+	case "postgres":
+		l = &postgres.Loader{DB: db}
+	}
+
 	var s models.Schema
 	if err := l.Load(&s); err != nil {
 		log.Fatalf("failed to load schema: %v", err)
