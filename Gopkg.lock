@@ -14,6 +14,18 @@
   version = "v1.1.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/knq/snaker"
+  packages = ["."]
+  revision = "b61ca5d535baf5b793bebc9f1a8e6485e12efdc7"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/lib/pq"
+  packages = [".","oid"]
+  revision = "83612a56d3dd153a94a629cd64925371c9adad78"
+
+[[projects]]
   name = "github.com/mattn/go-sqlite3"
   packages = ["."]
   revision = "ed69081a91fd053f17672236b0dd52ba7485e1a3"
@@ -24,12 +36,6 @@
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/serenize/snaker"
-  packages = ["."]
-  revision = "c7a77c38c398a5468cac9579c3b2b1de22fb4da6"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -52,6 +58,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d9121beb17445ee56dc135d0af69cbba9ac1a943221fa2f34c28467bdb9165f8"
+  inputs-digest = "bf555b26695dd0fcbce6cd55804eb42e92f78e309cd80b4aca2d48cc00661f01"
   solver-name = "gps-cdcl"
   solver-version = 1
