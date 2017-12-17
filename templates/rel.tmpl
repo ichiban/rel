@@ -1,7 +1,12 @@
+{{$driver := .Driver -}}
 package {{.Package}}
 
 import (
 	"database/sql"
+	{{- if eq $driver "postgres"}}
+	"fmt"
+	"regexp"
+	{{- end}}
 	"strings"
 	"time"
 )
@@ -30,7 +35,10 @@ func (m *{{.Name | singular | Camel}}) Create(db DB) error {
 	}
 	{{- end}}
 	{{- end}}
-	res, err := db.Exec(`INSERT INTO {{.Name}}(` + strings.Join(cs, ", ") + `) VALUES (` + strings.Join(ps, ", ") + `)`, vs...)
+	{{- if eq $driver "postgres"}}
+    row := db.QueryRow(`INSERT INTO {{.Name}}(` + strings.Join(cs, ", ") + `) VALUES (` + strings.Join(ps, ", ") + `) RETURNING {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}}`, vs...)
+	{{- else}}
+    res, err := db.Exec(`INSERT INTO {{.Name}}(` + strings.Join(cs, ", ") + `) VALUES (` + strings.Join(ps, ", ") + `)`, vs...)
 	if err != nil {
 		return err
 	}
@@ -39,19 +47,18 @@ func (m *{{.Name | singular | Camel}}) Create(db DB) error {
 		return err
 	}
 	row := db.QueryRow(`SELECT {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}} FROM {{.Name}} WHERE rowid = ?`, id)
+	{{- end}}
 	return row.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}})
 }
 
 func (m *{{.Name | singular | Camel}}) Update(db DB) error {
-	_, err := db.Exec(`UPDATE {{.Name}} SET {{range $index, $column := .Columns}}
-	{{- if $index}}, {{end -}}
-	{{$column.Name}} = ?
-	{{- end}} WHERE {{range $index, $column := .PrimaryKey}}
-	{{- if $index}}, {{end -}}
-	{{$column.Name}} = ?
-	{{- end -}}
-	`{{range .Columns}}, m.{{.Name | Camel}}{{end}}{{range .PrimaryKey}}, m.{{.Name | Camel}}{{end}})
-	return err
+	{{- if eq $driver "postgres"}}
+    row := db.QueryRow(`UPDATE {{.Name}} SET {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}} = ?{{end}} WHERE {{range $index, $column := .PrimaryKey}}{{if $index}}, {{end}}{{$column.Name}} = ?{{end}} RETURNING {{range $index, $column := .Columns}}{{if $index}}, {{end}}{{$column.Name}}{{end}}`{{range .Columns}}, m.{{.Name | Camel}}{{end}}{{range .PrimaryKey}}, m.{{.Name | Camel}}{{end}})
+    return row.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}})
+	{{- else}}
+    _, err := db.Exec(`UPDATE {{.Name}} SET {{range $index, $column := .Columns}}{{if $index}}, {{end}}	{{$column.Name}} = ?{{end}} WHERE {{range $index, $column := .PrimaryKey}}{{if $index}}, {{end}}{{$column.Name}} = ?{{end}}`{{range .Columns}}, m.{{.Name | Camel}}{{end}}{{range .PrimaryKey}}, m.{{.Name | Camel}}{{end}})
+    return err
+	{{- end}}
 }
 
 func (m *{{.Name | singular | Camel}}) Delete(db DB) error {
@@ -169,3 +176,32 @@ type DB interface {
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 	QueryRow(query string, args ...interface{}) *sql.Row
 }
+
+{{- if eq $driver "postgres"}}
+// BindVarDB replaces placeholders ? to postgres' $x
+type BindVarDB struct {
+	DB
+}
+
+var placeholder = regexp.MustCompile(`\?`)
+
+func bindVar(s string) string {
+	var i int
+	return placeholder.ReplaceAllStringFunc(s, func(s string) string {
+		i++
+		return fmt.Sprintf("$%d", i)
+	})
+}
+
+func (db BindVarDB) Exec(query string, args ...interface{}) (sql.Result, error) {
+	return db.DB.Exec(bindVar(query), args...)
+}
+
+func (db BindVarDB) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	return db.DB.Query(bindVar(query), args...)
+}
+
+func (db BindVarDB) QueryRow(query string, args ...interface{}) *sql.Row {
+	return db.DB.QueryRow(bindVar(query), args...)
+}
+{{- end}}

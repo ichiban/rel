@@ -13,6 +13,7 @@ import (
 )
 
 type Schema struct {
+	Driver  string
 	Package string
 	Tables  []Table
 }
