@@ -1,23 +1,24 @@
 package sqlite3
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
-	"database/sql"
+	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/ichiban/rel/models"
+	"github.com/ichiban/rel"
 )
 
 type Loader struct {
 	DB *sql.DB
 }
 
-var _ models.Loader = (*Loader)(nil)
+var _ rel.Loader = (*Loader)(nil)
 
-func (l *Loader) Load(schema *models.Schema) error {
+func (l *Loader) Load(schema *rel.Schema) error {
 	db := l.DB
 
 	var tableNames []string
@@ -34,7 +35,7 @@ func (l *Loader) Load(schema *models.Schema) error {
 	}
 
 	for _, tableName := range tableNames {
-		table := models.Table{
+		table := rel.Table{
 			Name: tableName,
 		}
 
@@ -60,12 +61,12 @@ func (l *Loader) Load(schema *models.Schema) error {
 			}
 		}
 
-		table.Columns = make([]models.Column, 0, len(tableInfo))
-		table.PrimaryKey = make([]models.Column, pkColumns)
+		table.Columns = make([]rel.Column, 0, len(tableInfo))
+		table.PrimaryKey = make([]rel.Column, pkColumns)
 
 		for _, column := range tableInfo {
 			rowidAlias := column.PK == 1 && strings.EqualFold(column.Type, "INTEGER") && pkColumns == 1
-			c := models.Column{
+			c := rel.Column{
 				Name:     column.Name,
 				RawType:  parseType(column.Type),
 				Nullable: !column.NotNull && !rowidAlias,

@@ -1,4 +1,4 @@
-package models
+package rel
 
 type Loader interface {
 	Load(*Schema) error

@@ -1,4 +1,4 @@
-package models
+package rel
 
 type Table struct {
 	Name       string

@@ -1,4 +1,4 @@
-package models
+package rel
 
 import (
 	"bytes"
@@ -6,14 +6,12 @@ import (
 	"io"
 	"log"
 	"reflect"
-	"text/template"
 )
-
-var Templates *template.Template
 
 type Schema struct {
 	Driver  string
 	Package string
+	Embed   []string
 	Tables  []Table
 }
 

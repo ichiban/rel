@@ -1,4 +1,5 @@
 {{$driver := .Driver -}}
+{{$embed := .Embed -}}
 package {{.Package}}
 
 import (
@@ -11,12 +12,26 @@ import (
 	"time"
 )
 
-{{range .Tables}}
+{{- range .Tables}}
+{{$name := .Name}}
+const (
+	{{- range .Columns}}
+	{{$name | Camel}}{{.Name | Camel}} = FieldName(`{{.Name | camel}}`)
+	{{- end}}
+)
+
 // {{.Name | singular | Camel}} represents a record in {{.Name}} table.
 type {{.Name | singular | Camel}} struct {
+{{- if $embed}}
+	{{- range $embed}}
+	{{.}}
+	{{- end}}
+
+	{{- end}}
 	{{- range .Columns}}
 	{{.Name | Camel}} {{.Type}} `json:"{{.Name | camel}}"`
 	{{- end}}
+	Errors map[FieldName]string `json:"errors,omitempty"`
 }
 
 func (m *{{.Name | singular | Camel}}) Create(db DB) error {
@@ -98,7 +113,7 @@ func (ms *{{.Name | plural | Camel}}) Find(db DB, scopes ...Scope) (bool, error)
 	}
 	defer rows.Close()
 	var m {{.Name | singular | Camel}}
-	if rows.Next() {
+	for rows.Next() {
 		if err := rows.Scan({{range $index, $column := .Columns}}{{if $index}}, {{end}}&m.{{.Name | Camel}}{{end}}); err != nil {
 			return false, err
 		}
@@ -205,3 +220,5 @@ func (db BindVarDB) QueryRow(query string, args ...interface{}) *sql.Row {
 	return db.DB.QueryRow(bindVar(query), args...)
 }
 {{- end}}
+
+type FieldName string

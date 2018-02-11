@@ -3,19 +3,20 @@ package postgres
 import (
 	"database/sql"
 	"reflect"
-
 	"time"
 
-	"github.com/ichiban/rel/models"
+	_ "github.com/lib/pq"
+
+	"github.com/ichiban/rel"
 )
 
 type Loader struct {
 	DB *sql.DB
 }
 
-var _ models.Loader = (*Loader)(nil)
+var _ rel.Loader = (*Loader)(nil)
 
-func (l *Loader) Load(schema *models.Schema) error {
+func (l *Loader) Load(schema *rel.Schema) error {
 	db := l.DB
 
 	var tableNames []string
@@ -32,7 +33,7 @@ func (l *Loader) Load(schema *models.Schema) error {
 	}
 
 	for _, tableName := range tableNames {
-		table := models.Table{
+		table := rel.Table{
 			Name: tableName,
 		}
 
@@ -49,7 +50,7 @@ func (l *Loader) Load(schema *models.Schema) error {
 			columns = append(columns, c)
 		}
 
-		table.Columns = make([]models.Column, 0, len(columns))
+		table.Columns = make([]rel.Column, 0, len(columns))
 		for _, c := range columns {
 			table.Columns = append(table.Columns, c.Column())
 		}
@@ -82,7 +83,7 @@ func (l *Loader) Load(schema *models.Schema) error {
 			primaryKeys = append(primaryKeys, c)
 		}
 
-		table.PrimaryKey = make([]models.Column, 0, len(primaryKeys))
+		table.PrimaryKey = make([]rel.Column, 0, len(primaryKeys))
 		for _, c := range columns {
 			table.PrimaryKey = append(table.PrimaryKey, c.Column())
 		}
@@ -100,8 +101,8 @@ type Columns struct {
 	DataType      string
 }
 
-func (c *Columns) Column() models.Column {
-	return models.Column{
+func (c *Columns) Column() rel.Column {
+	return rel.Column{
 		Name:     c.ColumnName,
 		RawType:  parseType(c.DataType),
 		Nullable: c.IsNullable == "YES",

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 
-	"github.com/ichiban/rel/models"
+	"github.com/ichiban/rel"
 )
 
 func TestLoader_Load(t *testing.T) {
@@ -57,7 +57,7 @@ func TestLoader_Load(t *testing.T) {
 	mock.ExpectQuery(`SELECT c.column_name, c.column_default, c.is_nullable, c.data_type FROM information_schema.columns c INNER JOIN information_schema.key_column_usage kcu ON c.table_schema = kcu.table_schema AND c.table_name = kcu.table_name AND c.column_name = kcu.column_name INNER JOIN information_schema.table_constraints tc ON c.table_schema = tc.table_schema AND c.table_name = tc.table_name WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.constraint_name = kcu.constraint_name AND c.table_schema = 'public' AND c.table_name = \$1 ORDER BY kcu.ordinal_position`).WillReturnRows(rows)
 
 	l := Loader{DB: db}
-	var schema models.Schema
+	var schema rel.Schema
 	assert.Nil(l.Load(&schema))
 	assert.Nil(mock.ExpectationsWereMet())
 
@@ -153,7 +153,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "bigint",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(int64(0)),
 		}, c.Column())
@@ -166,7 +166,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "bigint",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(int64(0)),
 			Default: true,
@@ -180,7 +180,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "YES",
 			DataType:      "bigint",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:     "foo",
 			RawType:  reflect.TypeOf(int64(0)),
 			Nullable: true,
@@ -194,7 +194,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "integer",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(int32(0)),
 		}, c.Column())
@@ -207,7 +207,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "smallint",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(int16(0)),
 		}, c.Column())
@@ -220,7 +220,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "character",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(""),
 		}, c.Column())
@@ -233,7 +233,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "character varying",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(""),
 		}, c.Column())
@@ -246,7 +246,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "text",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(""),
 		}, c.Column())
@@ -259,7 +259,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "boolean",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(false),
 		}, c.Column())
@@ -272,7 +272,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "date",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(time.Time{}),
 		}, c.Column())
@@ -285,7 +285,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "time without time zone",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(time.Time{}),
 		}, c.Column())
@@ -298,7 +298,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "time with time zone",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(time.Time{}),
 		}, c.Column())
@@ -311,7 +311,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "timestamp without time zone",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(time.Time{}),
 		}, c.Column())
@@ -324,7 +324,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "timestamp with time zone",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(time.Time{}),
 		}, c.Column())
@@ -337,7 +337,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "bytea",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf([]byte{}),
 		}, c.Column())
@@ -350,7 +350,7 @@ func TestColumns_Column(t *testing.T) {
 			IsNullable:    "NO",
 			DataType:      "type that we don't know",
 		}
-		assert.Equal(models.Column{
+		assert.Equal(rel.Column{
 			Name:    "foo",
 			RawType: reflect.TypeOf(new(interface{})).Elem(),
 		}, c.Column())

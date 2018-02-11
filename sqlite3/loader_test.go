@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 
-	"github.com/ichiban/rel/models"
+	"github.com/ichiban/rel"
 )
 
 func TestLoader_Load(t *testing.T) {
@@ -53,7 +53,7 @@ func TestLoader_Load(t *testing.T) {
 	mock.ExpectQuery(`PRAGMA table_info\(bottles\)`).WillReturnRows(rows)
 
 	l := Loader{DB: db}
-	var schema models.Schema
+	var schema rel.Schema
 	assert.Nil(l.Load(&schema))
 	assert.Nil(mock.ExpectationsWereMet())
 
